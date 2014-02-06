@@ -1,0 +1,9 @@
+{
+  "name": "snap",
+  "version": "0.0.1",
+  "description": "trial application using snap.svg and node.js",
+  "dependencies": {
+    "socket.io": "~0.9.6",
+    "mime": "~1.2.7"
+  }
+}
