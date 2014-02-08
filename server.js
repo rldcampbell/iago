@@ -59,9 +59,9 @@ server.listen(3000, function() {
 io = socketio.listen(server);
 
 io.sockets.on('connection', function(socket) {
-  var room = Math.random() > 0.5 ? 'one' : 'two';
+  var room = 'all';
   socket.join(room);
-  socket.on('toggle', function() {
-    io.sockets.in(room).emit('toggle');
-  })
+  socket.on('flip', function(data) {
+    socket.broadcast.to(room).emit('flip', data);
+  });
 });
