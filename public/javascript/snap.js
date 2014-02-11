@@ -10,21 +10,23 @@ function neighbours(i, j) {
 }
 function chain(functionArray, interval) {
   var i = 0;
-  functionArrayLength = functionArray.length;
+  var functionArrayLength = functionArray.length;
   if (!(functionArrayLength > 0)) {
     return;
   }
-  setInterval(function() {
+  var thisInterval = setInterval(function() {
     functionArray[i]();
     i += 1;
     if (!(i < functionArrayLength)) {
-      clearInterval(this);
+      clearInterval(thisInterval);
     }
   }, interval);
 }
 var directions = ["s", "sw", "nw", "n", "ne", "se"];
+var transformStrings = ["s1,-1", "r60s1,-1r-60", "r-60s1,-1r60", "s1,-1", "r60s1,-1r-60", "r-60s1,-1r60"];
 var p1color = "#0aa";
 var p2color = "#a0a";
+var currentPlayer = "p1";
 window.onload = function() {
   var svgCanvas = {
     height: 1000,
@@ -35,16 +37,15 @@ window.onload = function() {
     var alpha = Math.sqrt(3) * d / 4;
     return s.polygon([x - d/2, y, x - d/4, y + alpha, x + d/4, y + alpha, x + d/2, y, x + d/4, y - alpha, x - d/4, y - alpha]);
   }
-  function transformHexagon(i, j, tString) {
+  function transformHexagon(i, j, aObject) {
     hexObjects[i][j].snap.attr({transform: "r1r-1"});
-    hexObjects[i][j].snap.animate({transform: tString}, 500);
+    hexObjects[i][j].snap.animate(aObject, 500);
   }
   var i, j, k, r = 5, spacing = 75, hexWidth = 60, color = randomColor();
   var iLimit = 1 + 2 * r;
   var xOffset = svgCanvas.width / 2 - (r * spacing * 3 / 4);
   var yOffset = spacing * (r + 1) * Math.sqrt(3) / 4;
   var hexObjects = [];
-  var transformStrings = ["s1,-1", "r60s1,-1r-60", "r-60s1,-1r60"];
   
   for (i = 0; i < iLimit; i += 1) {
     hexObjects[i] = [];
@@ -63,21 +64,39 @@ window.onload = function() {
       hexObjects[i][j].snap.mouseover(function(i, j) {
         return function() {
           socket.emit('flip', {"i": i, "j": j});
-          transformHexagon(i, j, transformStrings[Math.floor(3 * Math.random())]);
+          transformHexagon(i, j, {transform: transformStrings[Math.floor(3 * Math.random())]});
         }
       }(i, j));
       hexObjects[i][j].snap.click(function(i, j) {
         return function() {
-          var attempt = tryMove(i, j, "p1");
-          console.log(attempt == null ? "illegal move for p1" : "legal move for p1 - " + attempt.count + " tile(s)");
+          var attempt = tryMove(i, j, currentPlayer);
+          if (attempt) {
+            hexObjects[i][j].snap.attr({fill: currentPlayer == "p1" ? p1color : p2color});
+            hexObjects[i][j].state = currentPlayer;
+            var funcArr = [];
+            for (k = 0; k < 6; k += 1) {
+              funcArr[k] = [];
+              var l;
+              var flipLength = attempt.forFlipping[k].length;
+              for (l = 0; l < flipLength; l += 1) {
+                var currentHex = attempt.forFlipping[k][l];
+                funcArr[k][l] = function(k, currentHex, currentPlayer) {
+                  return function() {
+                    hexObjects[currentHex.i][currentHex.j].state = currentPlayer;
+                    transformHexagon(currentHex.i, currentHex.j, {transform: transformStrings[k], fill: currentPlayer == "p1" ? p1color : p2color});
+                  };
+                }(k, currentHex, currentPlayer);
+              }
+            }
+            for (k = 0; k < 6; k += 1) {
+              if (funcArr[k].length > 0) {
+                chain(funcArr[k], 100);
+              }
+            }
+            currentPlayer = currentPlayer == "p1" ? "p2" : "p1";
+          }
         }
       }(i, j));
-//      hexObjects[i][j].snap.click(function(i, j) {
-//        return function() {
-//          chain([function() {transformHexagon(5, 0, "s1,-1");}, function() {transformHexagon(5, 1, "s1,-1");}, function() {transformHexagon(5, 2, "s1,-1");}, function() {transformHexagon(5, 3, "s1,-1");}, function() {transformHexagon(5, 4, "s1,-1");}, function() {transformHexagon(5, 5, "s1,-1");}, function() {transformHexagon(5, 6, "s1,-1");}, function() {transformHexagon(5, 7, "s1,-1");}, function() {transformHexagon(5, 8, "s1,-1");}, function() {transformHexagon(5, 9, "s1,-1");}, function() {transformHexagon(5, 10, "s1,-1");}], 100);
-//        }
-//      }(i, j));
-      
     }
   }
   
@@ -136,6 +155,6 @@ window.onload = function() {
   }
   
   socket.on('flip', function(data) {
-    transformHexagon(data.i, data.j, transformStrings[Math.floor(3 * Math.random())]);
+    transformHexagon(data.i, data.j, {transform: transformStrings[Math.floor(3 * Math.random())]});
   });
 }
