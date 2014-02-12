@@ -26,7 +26,17 @@ var directions = ["s", "sw", "nw", "n", "ne", "se"];
 var transformStrings = ["s1,-1", "r60s1,-1r-60", "r-60s1,-1r60", "s1,-1", "r60s1,-1r-60", "r-60s1,-1r60"];
 var p1color = "#0aa";
 var p2color = "#a0a";
-var currentPlayer = "p1";
+var player1 = {
+  color: "#0aa",
+  hcolor: "#cee",
+  key: "p1"
+};
+var player2 = {
+  color: "#a0a",
+  hcolor: "#ece",
+  key: "p2"
+};
+var currentPlayer = player1;
 window.onload = function() {
   var svgCanvas = {
     height: 1000,
@@ -37,9 +47,9 @@ window.onload = function() {
     var alpha = Math.sqrt(3) * d / 4;
     return s.polygon([x - d/2, y, x - d/4, y + alpha, x + d/4, y + alpha, x + d/2, y, x + d/4, y - alpha, x - d/4, y - alpha]);
   }
-  function transformHexagon(i, j, aObject) {
+  function transformHexagon(i, j, aObject, duration) {
     hexObjects[i][j].snap.attr({transform: "r1r-1"});
-    hexObjects[i][j].snap.animate(aObject, 500);
+    hexObjects[i][j].snap.animate(aObject, duration || 500);
   }
   var i, j, k, r = 5, spacing = 75, hexWidth = 60, color = randomColor();
   var iLimit = 1 + 2 * r;
@@ -63,16 +73,26 @@ window.onload = function() {
       };
       hexObjects[i][j].snap.mouseover(function(i, j) {
         return function() {
-          socket.emit('flip', {"i": i, "j": j});
-          transformHexagon(i, j, {transform: transformStrings[Math.floor(3 * Math.random())]});
+          if (hexObjects[i][j].state == null) {
+            socket.emit('hexover', {"i": i, "j": j});
+            transformHexagon(i, j, {fill: currentPlayer.hcolor, transform: "s1.05"}, 150);
+          }
+        }
+      }(i, j));
+      hexObjects[i][j].snap.mouseout(function(i, j) {
+        return function() {
+          if (hexObjects[i][j].state == null) {
+            socket.emit('hexover', {"i": i, "j": j});
+            transformHexagon(i, j, {fill: "#eee", transform: "s1"}, 150);
+          }
         }
       }(i, j));
       hexObjects[i][j].snap.click(function(i, j) {
         return function() {
           var attempt = tryMove(i, j, currentPlayer);
           if (attempt) {
-            hexObjects[i][j].snap.attr({fill: currentPlayer == "p1" ? p1color : p2color});
-            hexObjects[i][j].state = currentPlayer;
+            transformHexagon(i, j, {fill: currentPlayer == player1 ? player1.color : player2.color, transform: "s1"});
+            hexObjects[i][j].state = currentPlayer.key;
             var funcArr = [];
             for (k = 0; k < 6; k += 1) {
               funcArr[k] = [];
@@ -82,8 +102,11 @@ window.onload = function() {
                 var currentHex = attempt.forFlipping[k][l];
                 funcArr[k][l] = function(k, currentHex, currentPlayer) {
                   return function() {
-                    hexObjects[currentHex.i][currentHex.j].state = currentPlayer;
-                    transformHexagon(currentHex.i, currentHex.j, {transform: transformStrings[k], fill: currentPlayer == "p1" ? p1color : p2color});
+                    hexObjects[currentHex.i][currentHex.j].state = currentPlayer.key;
+                    transformHexagon(currentHex.i, currentHex.j, {
+                      transform: transformStrings[k], 
+                      fill: currentPlayer == player1 ? player1.color : player2.color
+                    });
                   };
                 }(k, currentHex, currentPlayer);
               }
@@ -93,7 +116,7 @@ window.onload = function() {
                 chain(funcArr[k], 100);
               }
             }
-            currentPlayer = currentPlayer == "p1" ? "p2" : "p1";
+            currentPlayer = currentPlayer == player1 ? player2 : player1;
           }
         }
       }(i, j));
@@ -105,7 +128,7 @@ window.onload = function() {
     if (nextHex == null || nextHex.state == null) {
       return [];
     }
-    if (nextHex.state == player) {
+    if (nextHex.state == player.key) {
       return history.length < 1 ? [] : history;
     }
     history.push(nextHex);
@@ -136,10 +159,10 @@ window.onload = function() {
   for (k = 0; k < 12; k += 1) {
     var hex1 = hexObjects[r + p1initial[k][0]][r + p1initial[k][1]];
     var hex2 = hexObjects[r + p2initial[k][0]][r + p2initial[k][1]];
-    hex1.snap.attr({fill: p1color});
-    hex2.snap.attr({fill: p2color});
-    hex1.state = "p1";
-    hex2.state = "p2";
+    hex1.snap.attr({fill: player1.color});
+    hex2.snap.attr({fill: player2.color});
+    hex1.state = player1.key;
+    hex2.state = player2.key;
   }
   
   for (i = 0; i < iLimit; i += 1) {
@@ -154,7 +177,11 @@ window.onload = function() {
     }
   }
   
-  socket.on('flip', function(data) {
-    transformHexagon(data.i, data.j, {transform: transformStrings[Math.floor(3 * Math.random())]});
+  socket.on('hexover', function(data) {
+    transformHexagon(data.i, data.j, {fill: currentPlayer.hcolor, transform: "s1.05"}, 150);
+  });
+  
+  socket.on('hexout', function(data) {
+    transformHexagon(data.i, data.j, {fill: "#eee", transform: "s1"}, 150);
   });
 }
