@@ -1,13 +1,17 @@
 var socket = io.connect();
+
 function coordinatesToPosition(i, j, d) {
   return [d * 3 * i / 4, d * (2 * j - i) * Math.sqrt(3) / 4];
 }
+
 function randomColor() {
   return "#" + ("00000" + Math.floor(Math.random() * 256 * 256 * 256).toString(16)).slice(-6);
 }
+
 function neighbours(i, j) {
   return [[i, j + 1], [i - 1, j], [i - 1, j - 1], [i, j - 1], [i + 1, j], [i + 1, j + 1]];
 }
+
 function chain(functionArray, interval) {
   var i = 0;
   var functionArrayLength = functionArray.length;
@@ -22,35 +26,44 @@ function chain(functionArray, interval) {
     }
   }, interval);
 }
+
 var directions = ["s", "sw", "nw", "n", "ne", "se"];
 var transformStrings = ["s1,-1", "r60s1,-1r-60", "r-60s1,-1r60", "s1,-1", "r60s1,-1r-60", "r-60s1,-1r60"];
 var p1color = "#0aa";
 var p2color = "#a0a";
+
 var player1 = {
   color: "#0aa",
   hcolor: "#cee",
   key: "p1"
 };
+
 var player2 = {
   color: "#a0a",
   hcolor: "#ece",
   key: "p2"
 };
+
 var currentPlayer = player1;
+
 window.onload = function() {
   var svgCanvas = {
     height: 1000,
     width: 1000
   };
+    
   var s = Snap(svgCanvas.width, svgCanvas.height);
+
   function hexagon(x, y, d) {
     var alpha = Math.sqrt(3) * d / 4;
     return s.polygon([x - d/2, y, x - d/4, y + alpha, x + d/4, y + alpha, x + d/2, y, x + d/4, y - alpha, x - d/4, y - alpha]);
   }
+    
   function transformHexagon(i, j, aObject, duration) {
     hexObjects[i][j].snap.attr({transform: "r1r-1"});
     hexObjects[i][j].snap.animate(aObject, duration || 500);
   }
+    
   var i, j, k, r = 5, spacing = 75, hexWidth = 60, color = randomColor();
   var iLimit = 1 + 2 * r;
   var xOffset = svgCanvas.width / 2 - (r * spacing * 3 / 4);
